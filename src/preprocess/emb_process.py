@@ -4,7 +4,7 @@ from torch.nn.functional import pad
 from typing import List, Tuple
 
 
-def preprocess(raw: List[Tensor]) -> Tuple[Tensor, int, List[int]]:
+def emb_process(raw: List[Tensor]) -> Tuple[Tensor, int, List[int]]:
     """
     Preprocess takes in a list of 2D tensors. Each tensor may have
     different lengths, but the same number of dimensions. We pad
