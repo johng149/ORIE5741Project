@@ -1,6 +1,6 @@
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, collect_list, struct, udf
-from pyspark.sql.types import ArrayType
+from pyspark.sql.functions import col, collect_list, struct, udf, explode
+from pyspark.sql.types import ArrayType, StructType
 
 
 def sort_group(structure, sort_col):
@@ -46,4 +46,29 @@ def gather_and_sort(
     udf_schema = ArrayType(df.schema)
     sort_udf = udf(lambda x: sort_group(x, sort_col), udf_schema)
     sorted_df = grouped.withColumn(alias, sort_udf(col(alias)))
-    return sorted_df
+    return sorted_df, udf_schema
+
+
+def ungroup(
+    df: DataFrame, alias: str, original_schema: ArrayType, exploded_col: str = "exloded"
+) -> DataFrame:
+    """
+    For testing purposes, we also have an ungroup function that will
+    undo the combining done by gather_and_sort, though it will not
+    restore the original order of the rows.
+    @param df: DataFrame
+    @param alias: Column to ungroup
+    @param original_schema: Original schema used for grouping
+    @param exploded_col: Column name for exploded column, it is used
+            temporarily during the ungrouping process, if `df` already has
+            a column named `exploded`, it will be replaced
+    @return: Ungrouped DataFrame
+    """
+    struct_schema = original_schema.elementType  # Get the StructType from the ArrayType
+    ungrouped_df = df.select(df.columns + [explode(df[alias]).alias(f"{exploded_col}")])
+    for field in struct_schema.fields:
+        ungrouped_df = ungrouped_df.withColumn(
+            field.name, col(f"{exploded_col}." + field.name)
+        )
+    ungrouped_df = ungrouped_df.drop(f"{exploded_col}", alias)
+    return ungrouped_df
