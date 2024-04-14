@@ -5,6 +5,16 @@ from typing import List
 
 
 def create_masks(seq_lens: List[int], longest_seq_len: int) -> Tensor:
+    """
+    Given list of sequence lengths and the longest sequence length,
+    create a mask for each sequence where it is False for padding /
+    future tokens. It is assumed that multihead attention is not
+    being used
+
+    @param seq_lens: List of sequence lengths
+    @param longest_seq_len: Length of longest sequence
+    @return: Tensor of shape (batch_size, longest_seq_len, longest_seq_len)
+    """
     attn_matrices = []
     for i in range(len(seq_lens)):
         seq = seq_lens[i]
@@ -12,3 +22,17 @@ def create_masks(seq_lens: List[int], longest_seq_len: int) -> Tensor:
         mask[:, seq:] = 0
         attn_matrices.append(mask.bool())
     return torch.stack(attn_matrices)
+
+
+def multiheadify_masks(masks: Tensor) -> Tensor:
+    """
+    Given the output of create_masks, modifies the masks such that
+    it is compatible with multihead attention. It is assumed
+    that each head uses the same mask pattern (which is reasonable
+    since padding / future tokens are still the same regardless
+    of which head is being considered)
+
+    @param masks: Tensor of shape (batch_size, longest_seq_len, longest_seq_len)
+    @return: Tensor of shape (batch_size, 1, longest_seq_len, longest_seq_len)
+    """
+    return masks.unsqueeze(1)
