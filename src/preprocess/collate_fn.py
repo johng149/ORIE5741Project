@@ -6,6 +6,7 @@ from src.preprocess.emb_process import emb_process
 from src.preprocess.targets import create_targets, positional_indices
 from src.preprocess.masking import create_masks
 
+
 def mat_collate_fn(batch: List[dict]) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """
     Given batch from materialized dataset (not lazy loaded), collate
@@ -21,8 +22,8 @@ def mat_collate_fn(batch: List[dict]) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         and attention masks
     """
     embs, targets = mat_extract(batch)
+    targets = create_targets(targets)
     pos_indices = positional_indices(targets)
     emb, longest, seq_lens = emb_process(embs)
-    targets = create_targets(targets)
     masks = create_masks(seq_lens, longest)
     return emb, pos_indices, targets, masks

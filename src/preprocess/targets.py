@@ -35,14 +35,14 @@ def create_targets(raw: List[Tensor]) -> Tensor:
     return to_padded_tensor(nested_tensor(raw), -1)
 
 
-def positional_indices(raw: List[Tensor]) -> Tensor:
+def positional_indices(targets: List[Tensor]) -> Tensor:
     """
-    Given list of vectors describing sequence, where -1
+    Given list of vectors describing target vector, where -1
     is sequence position we do not need to make predictions
     for, create positional indices tensor to be used for
     positional embeddings
 
-    @param raw: List[Tensor] - list of vectors describing sequence
+    @param targets: List[Tensor] - list of vectors describing target vector
     @return Tensor - tensor of positional indices
 
     It is similar to create_targets, but instead of shifting,
@@ -52,13 +52,18 @@ def positional_indices(raw: List[Tensor]) -> Tensor:
     [
         [-1,-1,2,-1,-1,3],
         [-1,8,-1,5]
+    ],
+
+    which produces targets of
+    [
+        [-1,2,-1,-1,3,-1],
+        [8,-1,5,-1,-1,-1]
     ]
 
-    result is:
+    then result is:
     [
-        [0,0,3,0,0,4]
-        [0,9,0,6,0,0]
+        [0,1,0,0,1,0],
+        [1,0,1,0,0,0]
     ]
     """
-    padded = to_padded_tensor(nested_tensor(raw), -1)
-    return padded + 1
+    return (targets >= 0).int()
