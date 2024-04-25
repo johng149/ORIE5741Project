@@ -12,6 +12,9 @@ class Embeddings:
         self.model = SentenceTransformer(model_name)
         self.col_emb = {}
 
+    def get_emb_dim_size(self):
+        return self.model.get_sentence_embedding_dimension()
+
     def cache_col_emb(self, cols):
         if set(cols) == set(self.col_emb.keys()):
             return
@@ -59,6 +62,24 @@ class Embeddings:
         emb_out_col: str,
         target_out_col: str,
     ) -> DataFrame:
+        """
+        Process a DataFrame to add embeddings and target vectors
+        with the data column containing a tuple of embeddings and target vectors
+        for each row
+
+        @param df: DataFrame whose columns are equal to or a subset of `cols`
+        @param cols: Columns to compute embeddings for
+        @param target_col: Target column to create the target vector
+        @param unique_targets: Mapping from unique values on target column to integers
+            greater than or equal to 0
+        @param data_col: Column name containing the data to compute embeddings for
+        @param emb_out_col: Column name for the embeddings, used to store the embeddings
+            before it is combined with the target vector and stored in `data_col` column
+        @param target_out_col: Column name for the target vector, used to store the target
+            vector the embeddings and it are combined and stored in `data_col` column
+        @return: DataFrame with the `data_col` column containing the tuple of embeddings
+            and target vectors for each row
+        """
         self.cache_col_emb(cols)
         compute_emb_udf = udf(
             lambda x: Embeddings.compute_embeddings(x, cols, self.col_emb, self.model),

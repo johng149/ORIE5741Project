@@ -50,7 +50,10 @@ def gather_and_sort(
 
 
 def ungroup(
-    df: DataFrame, alias: str, original_schema: ArrayType, exploded_col: str = "exloded"
+    df: DataFrame,
+    alias: str,
+    original_schema: ArrayType,
+    exploded_col: str = "exploded",
 ) -> DataFrame:
     """
     For testing purposes, we also have an ungroup function that will
