@@ -2,10 +2,10 @@ import torch
 from torch import Tensor
 from torch.nested import nested_tensor, to_padded_tensor
 from torch import roll
-from typing import List
+from typing import List, Tuple
 
 
-def create_targets(raw: List[Tensor]) -> Tensor:
+def create_targets(raw: List[Tensor] | Tuple[Tensor]) -> Tensor:
     """
     Given list of vectors describing sequence, where -1
     is sequence position we do not need to make predictions
@@ -29,13 +29,15 @@ def create_targets(raw: List[Tensor]) -> Tensor:
         [8,-1,5,-1,-1,-1]
     ]
     """
+    processed = []
     for i, t in enumerate(raw):
-        raw[i] = roll(t, -1)
-        raw[i][-1] = -1
-    return to_padded_tensor(nested_tensor(raw), -1)
+        t = roll(t, -1)
+        t[-1] = -1
+        processed.append(t)
+    return to_padded_tensor(nested_tensor(processed), -1)
 
 
-def positional_indices(targets: List[Tensor]) -> Tensor:
+def positional_indices(targets: List[Tensor] | Tuple[Tensor]) -> Tensor:
     """
     Given list of vectors describing target vector, where -1
     is sequence position we do not need to make predictions
