@@ -2,6 +2,7 @@ from typing import List, Tuple
 from torch import Tensor
 import torch
 
+
 def produce_embedding(raw: dict) -> Tensor:
     """
     Given a dict containing the input embeddings as a flat list of floats
@@ -14,7 +15,10 @@ def produce_embedding(raw: dict) -> Tensor:
     """
     return torch.tensor(raw["values"]).reshape(raw["numRows"], raw["numCols"])
 
-def mat_extract(batch: List[dict]) -> Tuple[List[Tensor], List[Tensor]]:
+
+def mat_extract(
+    batch: List[dict], embeddings_key="embeddings", targets_key="target"
+) -> Tuple[List[Tensor], List[Tensor]]:
     """
     Given batch from materialized dataset (not lazy loaded),
     extract the input embeddings and positional indices.
@@ -27,6 +31,6 @@ def mat_extract(batch: List[dict]) -> Tuple[List[Tensor], List[Tensor]]:
     @return Tuple of List of input embeddings and List of positional indices,
         these are stored in lists since their sequence lengths may differ
     """
-    embs = [produce_embedding(d["embeddings"]) for d in batch]
-    targets = [torch.tensor(d["target"]["values"]) for d in batch]
+    embs = [produce_embedding(d[embeddings_key]) for d in batch]
+    targets = [torch.tensor(d[targets_key]["values"]) for d in batch]
     return embs, targets

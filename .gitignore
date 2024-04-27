@@ -3,3 +3,5 @@ mini_sparkify_event_data.json
 # venv folder
 /proj
 *.pyc
+data/mini_sparkify_event_data.parquet
+data/mini_sparkify_event_data_sample.json

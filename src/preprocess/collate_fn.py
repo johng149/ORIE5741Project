@@ -7,7 +7,9 @@ from src.preprocess.targets import create_targets, positional_indices
 from src.preprocess.masking import create_masks
 
 
-def mat_collate_fn_dicts(batch: List[dict]) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+def mat_collate_fn_dicts(
+    batch: List[dict], embeddings_key="embeddings", targets_key="target"
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """
     Given batch from materialized dataset (not lazy loaded), collate
     the input embeddings, positional indices, target indices, and
@@ -21,7 +23,9 @@ def mat_collate_fn_dicts(batch: List[dict]) -> Tuple[Tensor, Tensor, Tensor, Ten
     @return Tuple of input embeddings, positional indices, target indices,
         and attention masks
     """
-    embs, targets = mat_extract(batch)
+    embs, targets = mat_extract(
+        batch, embeddings_key=embeddings_key, targets_key=targets_key
+    )
     targets = create_targets(targets)
     pos_indices = positional_indices(targets)
     emb, longest, seq_lens = emb_process(embs)

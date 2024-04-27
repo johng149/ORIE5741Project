@@ -71,6 +71,8 @@ def process_data(
         df.select(target_col).distinct().rdd.map(lambda row: row[target_col]).collect()
     )
     unique_targets = {t: i for i, t in enumerate(unique_targets)}
+    target_groups = df.groupBy(target_col).count().collect()
+    target_groups = {row[target_col]: row["count"] for row in target_groups}
     df_processed, udf_schema = gather_and_sort(
         df=df,
         gather_col=gather_col,
@@ -126,6 +128,7 @@ def process_data(
     unique_targets_path = os.path.join(output_dir, "unique_targets.json")
     train_target_dist_path = os.path.join(output_dir, "train_target_dist.json")
     test_target_dist_path = os.path.join(output_dir, "test_target_dist.json")
+    target_dist_path = os.path.join(output_dir, "target_dist.json")
 
     # save output
     train_dataset.save_to_disk(train_ds_path)
@@ -136,3 +139,5 @@ def process_data(
         json.dump(train_target_groups, f)
     with open(test_target_dist_path, "w") as f:
         json.dump(test_target_groups, f)
+    with open(target_dist_path, "w") as f:
+        json.dump(target_groups, f)
