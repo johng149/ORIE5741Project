@@ -1,6 +1,7 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, collect_list, struct, udf, explode
 from pyspark.sql.types import ArrayType, StructType
+from typing import Tuple
 
 
 def sort_group(structure, sort_col):
@@ -23,7 +24,7 @@ def unique_prediction_targets(df: DataFrame, prediction_col: str) -> dict:
 
 def gather_and_sort(
     df: DataFrame, gather_col: str, sort_col: str, alias: str
-) -> DataFrame:
+) -> Tuple[DataFrame, ArrayType]:
     """
     Gather and sort a DataFrame
     @param df: DataFrame

@@ -5,12 +5,15 @@ from pyspark.sql.functions import udf
 from pyspark.sql.functions import col, struct
 from typing import List
 from pyspark.sql import DataFrame
+import torch
+from tqdm.auto import tqdm
 
 
 class Embeddings:
     def __init__(self, model_name):
         self.model = SentenceTransformer(model_name)
         self.col_emb = {}
+        self.body_emb = {}
 
     def get_emb_dim_size(self):
         return self.model.get_sentence_embedding_dimension()
@@ -20,6 +23,60 @@ class Embeddings:
             return
         for c in cols:
             self.col_emb[c] = self.model.encode(c)
+
+    def encode_row(self, row, cols, group_col, sort_col, target_col):
+        # to make sure that target_col is encoded last, we remove
+        # it from the cols and add it back at the end
+        cols = [c for c in cols if c != target_col]
+        cols.append(target_col)
+        result = []
+        for d in row[0]:
+            for c in cols:
+                if c not in [group_col, sort_col]:
+                    k = c
+                    v = d[c]
+                    if k not in self.col_emb:
+                        self.col_emb[k] = self.model.encode(k, convert_to_tensor=True)
+                    v = str(v)
+                    if v not in self.body_emb:
+                        self.body_emb[v] = self.model.encode(v, convert_to_tensor=True)
+                    k_emb = self.col_emb[k]
+                    v_emb = self.body_emb[v]
+                    summed = k_emb + v_emb
+                    result.append(summed)
+        return torch.stack(result)
+
+    def encode_row_targets(
+        self, row, cols, group_col, sort_col, target_col, unique_targets, target_dist
+    ):
+        cols = [c for c in cols if c not in [group_col, sort_col, target_col]]
+        cols.append(target_col)
+        result = []
+        for d in row[0]:
+            for c in cols:
+                if c == target_col:
+                    v = d[c]
+                    idx = unique_targets[v]
+                    if v not in target_dist:
+                        target_dist[v] = 0
+                    target_dist[v] += 1
+                else:
+                    idx = -1
+                result.append(idx)
+        return torch.tensor(result)
+
+    def encode_df(self, df, cols, group_col, sort_col, target_col, unique_targets):
+        tensors = []
+        targets = []
+        target_dist = {}
+        for index, row in tqdm(df.iterrows(), total=len(df)):
+            tensor = self.encode_row(row, cols, group_col, sort_col, target_col)
+            target = self.encode_row_targets(
+                row, cols, group_col, sort_col, target_col, unique_targets, target_dist
+            )
+            tensors.append(tensor)
+            targets.append(target)
+        return tensors, targets, target_dist
 
     @staticmethod
     def compute_embeddings(data, cols, column_embeddings, model) -> DenseMatrix:
