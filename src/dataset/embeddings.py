@@ -7,13 +7,22 @@ from typing import List
 from pyspark.sql import DataFrame
 import torch
 from tqdm.auto import tqdm
+from src.common.cache import LimitedSizeDict
+from functools import lru_cache
 
 
 class Embeddings:
-    def __init__(self, model_name):
-        self.model = SentenceTransformer(model_name)
-        self.col_emb = {}
-        self.body_emb = {}
+    def __init__(self, model_name, device="cpu", cache_size=1000):
+        self.model = SentenceTransformer(model_name, device=device)
+        self.col_emb = LimitedSizeDict(size_limit=cache_size)
+        self.body_emb = LimitedSizeDict(size_limit=cache_size)
+        self.cache_size = cache_size
+
+        @lru_cache(maxsize=cache_size)
+        def call_model_encode(text):
+            return self.model.encode(text, convert_to_tensor=True)
+
+        self.call_model_encode = call_model_encode
 
     def get_emb_dim_size(self):
         return self.model.get_sentence_embedding_dimension()
@@ -38,10 +47,10 @@ class Embeddings:
                     if k not in self.col_emb:
                         self.col_emb[k] = self.model.encode(k, convert_to_tensor=True)
                     v = str(v)
-                    if v not in self.body_emb:
-                        self.body_emb[v] = self.model.encode(v, convert_to_tensor=True)
+                    # if v not in self.body_emb:
+                    #     self.body_emb[v] = self.model.encode(v, convert_to_tensor=True)
                     k_emb = self.col_emb[k]
-                    v_emb = self.body_emb[v]
+                    v_emb = self.call_model_encode(v)
                     summed = k_emb + v_emb
                     result.append(summed)
         return torch.stack(result)

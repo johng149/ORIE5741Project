@@ -6,6 +6,7 @@ from src.dataset.transformation import gather_and_sort, ungroup
 from src.dataset.embeddings import Embeddings
 import json
 import pandas as pd
+import torch
 
 
 def process_data(
@@ -149,6 +150,7 @@ def process_data_pandas(
     gather_col: str,
     sort_col: str,
     target_col: str,
+    cache_size: int = 1000,
     output_dir: str = "./data",
     train_split: float = 0.8,
     model: str = "all-MiniLM-L6-v2",
@@ -158,6 +160,7 @@ def process_data_pandas(
     train_target_dist_name: str = "train_target_dist.json",
     test_target_dist_name: str = "test_target_dist.json",
     total_dist_name: str = "target_dist.json",
+    device: str = "cpu",
 ):
     """
     Loads a parquet file into pandas, gathers and sorts the data, and then
@@ -188,7 +191,7 @@ def process_data_pandas(
     unique_targets_dist = df[target_col].value_counts().to_dict()
     grouped = df.sort_values(sort_col).groupby(gather_col)
     sorted_df = grouped.apply(lambda x: x.to_dict("records")).reset_index()
-    embedding_processor = Embeddings(model)
+    embedding_processor = Embeddings(model, device=device, cache_size=cache_size)
     train = sorted_df.sample(frac=train_split)
     test = sorted_df.drop(train.index).sample(frac=1)  # sample reshuffles the data
     train_tensors, train_targets, train_target_dist = embedding_processor.encode_df(
@@ -207,21 +210,21 @@ def process_data_pandas(
         target_col=target_col,
         unique_targets=unique_targets,
     )
-    train_df = pd.DataFrame(
-        {
-            "tensors": train_tensors,
-            "targets": train_targets,
-        }
-    )
-    test_df = pd.DataFrame(
-        {
-            "tensors": test_tensors,
-            "targets": test_targets,
-        }
-    )
+    # train_df = pd.DataFrame(
+    #     {
+    #         "tensors": train_tensors,
+    #         "targets": train_targets,
+    #     }
+    # )
+    # test_df = pd.DataFrame(
+    #     {
+    #         "tensors": test_tensors,
+    #         "targets": test_targets,
+    #     }
+    # )
     os.makedirs(output_dir, exist_ok=True)
-    train_ds = Dataset.from_pandas(train_df)
-    test_ds = Dataset.from_pandas(test_df)
+    # train_ds = Dataset.from_pandas(train_df)
+    # test_ds = Dataset.from_pandas(test_df)
     train_ds_path = os.path.join(output_dir, train_ds_name)
     test_ds_path = os.path.join(output_dir, test_ds_name)
     unique_targets_path = os.path.join(output_dir, unique_targets_name)
@@ -229,8 +232,18 @@ def process_data_pandas(
     test_target_dist_path = os.path.join(output_dir, test_target_dist_name)
     total_dist_path = os.path.join(output_dir, total_dist_name)
 
-    train_ds.save_to_disk(train_ds_path)
-    test_ds.save_to_disk(test_ds_path)
+    # train_ds.save_to_disk(train_ds_path)
+    # test_ds.save_to_disk(test_ds_path)
+    train = {
+        "tensors": train_tensors,
+        "targets": train_targets,
+    }
+    test = {
+        "tensors": test_tensors,
+        "targets": test_targets,
+    }
+    torch.save(train, train_ds_path)
+    torch.save(test, test_ds_path)
     with open(unique_targets_path, "w") as f:
         json.dump(unique_targets, f)
     with open(train_target_dist_path, "w") as f:
