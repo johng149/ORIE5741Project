@@ -7,3 +7,11 @@ data/mini_sparkify_event_data.parquet
 data/mini_sparkify_event_data_sample.json
 data/test_dataset
 data/train_dataset
+data/train_first_half
+data/train_second_half
+data/train_second_half1
+data/train_second_half2
+data/train_first_half_dataset
+data/train_second_half1_dataset
+data/train_second_half2_dataset
+data/train_dataset_combined
