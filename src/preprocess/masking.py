@@ -36,3 +36,19 @@ def multiheadify_masks(masks: Tensor) -> Tensor:
     @return: Tensor of shape (batch_size, 1, longest_seq_len, longest_seq_len)
     """
     return masks.unsqueeze(1)
+
+
+def multiheadify_with_num_heads(masks: Tensor, num_heads: int) -> Tensor:
+    """
+    Given the output of create_masks, modifies the masks such that
+    it is compatible with multihead attention from
+    `nn.MultiheadAttention`. This differs from `multiheadify_masks`
+    because `multiheadify_masks` changes the number of dimensions to
+    4, while this function keeps the number of dimensions the same
+    but repeats the mask as many times as there are heads
+
+    @param masks: Tensor of shape (batch_size, longest_seq_len, longest_seq_len)
+    @param num_heads: Number of heads
+    @return: Tensor of shape (batch_size * num_heads, longest_seq_len, longest_seq_len)
+    """
+    return masks.repeat(num_heads, 1, 1)

@@ -30,7 +30,12 @@ def mat_collate_fn_dicts(
     pos_indices = positional_indices(targets)
     emb, longest, seq_lens = emb_process(embs)
     masks = create_masks(seq_lens, longest)
-    return emb, pos_indices, targets, masks
+    # we need to use logical_not on mask because
+    # the model uses nn.MultiheadAttention which assumes
+    # locations that are True are masked, but when the masking
+    # function was created, it was assumed that locations that
+    # are False are masked
+    return emb, pos_indices, targets, torch.logical_not(masks)
 
 
 def mat_collate_fn(
@@ -50,4 +55,9 @@ def mat_collate_fn(
     pos_indices = positional_indices(targets)
     emb, longest, seq_lens = emb_process(embs)
     masks = create_masks(seq_lens, longest)
-    return emb, pos_indices, targets, masks
+    # we need to use logical_not on mask because
+    # the model uses nn.MultiheadAttention which assumes
+    # locations that are True are masked, but when the masking
+    # function was created, it was assumed that locations that
+    # are False are masked
+    return emb, pos_indices, targets, torch.logical_not(masks)
