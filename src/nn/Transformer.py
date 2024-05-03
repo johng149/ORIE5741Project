@@ -129,6 +129,15 @@ class TransformerModel(nn.Module):
         emb_dim=384,
     ):
         super(TransformerModel, self).__init__()
+        self.kwargs = {
+            "num_classes": num_classes,
+            "nhead": nhead,
+            "num_layers": num_layers,
+            "dim_feedforward": dim_feedforward,
+            "dropout": dropout,
+            "max_length": max_length,
+            "emb_dim": emb_dim,
+        }
         self.nhead = nhead
         self.pos_emb = nn.Embedding(2, emb_dim)
         self.encoder = TransformerEncoder(

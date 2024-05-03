@@ -7,6 +7,11 @@ class SparkifyDataset(Dataset):
         self.data_file = data_file
         self.max_seq_len = max_seq_len
         self.map_device = map_device
+        self.kwargs = {
+            "data_file": data_file,
+            "max_seq_len": max_seq_len,
+            "map_device": map_device,
+        }
         self.data = torch.load(data_file, map_location=map_device)
         self.tensors = self.data["tensors"]
         self.targets = self.data["targets"]
