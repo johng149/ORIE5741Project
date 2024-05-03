@@ -12,6 +12,33 @@ from tqdm.auto import tqdm
 import os
 
 
+def save_checkpoint(
+    model,
+    optm,
+    epoch,
+    model_kwargs,
+    train_data,
+    test_data,
+    writer,
+    checkpoint_path,
+    ignore_index,
+    cross_entropy_weights=None,
+):
+    save_data = {
+        "model": model.state_dict(),
+        "optimizer": optm.state_dict(),
+        "epoch": epoch,
+        "model_kwargs": model.kwargs,
+        "train_kwargs": train_data.kwargs,
+        "test_kwargs": test_data.kwargs if test_data else None,
+        "writer_dir": writer.get_logdir(),
+        "checkpoint_path": checkpoint_path,
+        "ignore_index": ignore_index,
+        "cross_entropy_weights": cross_entropy_weights,
+    }
+    torch.save(save_data, os.path.join(checkpoint_path, "checkpoint.pth"))
+
+
 def accuracy(pred: Tensor, targets: Tensor, ignore_idx: int = -1) -> float:
     """
     Compute the accuracy of the model's predictions.
@@ -43,6 +70,7 @@ def train(
     save_every_n: int = 100,
     device: str = "cpu",
     checkpoint_name: str = "checkpoint.pth",
+    cross_entropy_weights: Optional[Tensor] = None,
 ):
     """
     Train the model on the training data.
@@ -62,7 +90,12 @@ def train(
     @param test_every_n: Test the model every n iterations
     @param save_every_n: Save the model every n iterations
     @param device: Device to use for training
+    @param checkpoint_name: Name of the checkpoint file
+    @param cross_entropy_weights: Weights for the cross entropy loss, useful for
+        imbalanced datasets
     """
+    if cross_entropy_weights is not None:
+        cross_entropy_weights = cross_entropy_weights.to(device)
     os.makedirs(checkpoint_path, exist_ok=True)
     if isinstance(writer, str):
         os.makedirs(writer, exist_ok=True)
@@ -100,18 +133,19 @@ def train(
                 masks.to(device),
             )
             outputs = model(emb, pos_indices, mask=masks)
+            with torch.no_grad():
+                acc = accuracy(outputs.argmax(-1), targets)
+                writer.add_scalar("Accuracy/train", acc, epoch)
             loss = F.cross_entropy(
                 outputs.reshape(-1, outputs.size(-1)),
                 targets.reshape(-1),
                 ignore_index=ignore_index,
+                weight=cross_entropy_weights,
             )
             optm.zero_grad()
             loss.backward()
             optm.step()
             writer.add_scalar("Loss/train", loss.item(), epoch)
-            writer.add_scalar(
-                "Accuracy/train", accuracy(outputs.argmax(-1), targets), epoch
-            )
             if epoch % test_every_n == 0 and test_data:
                 with torch.no_grad():
                     model.eval()
@@ -127,41 +161,53 @@ def train(
                         masks.to(device),
                     )
                     outputs = model(emb, pos_indices, mask=masks)
+                    acc = accuracy(outputs.argmax(-1), targets)
+                    writer.add_scalar("Accuracy/test", acc, epoch)
                     loss = F.cross_entropy(
                         outputs.reshape(-1, outputs.size(-1)),
                         targets.reshape(-1),
                         ignore_index=ignore_index,
+                        weight=cross_entropy_weights,
                     )
                     writer.add_scalar("Loss/test", loss.item(), epoch)
-                    writer.add_scalar(
-                        "Accuracy/test", accuracy(outputs.argmax(-1), targets), epoch
-                    )
             if epoch % save_every_n == 0:
-                save_data = {
-                    "model": model.state_dict(),
-                    "optimizer": optm.state_dict(),
-                    "epoch": epoch,
-                    "model_kwargs": model.kwargs,
-                    "train_kwargs": train_data.kwargs,
-                    "test_kwargs": test_data.kwargs if test_data else None,
-                    "writer_dir": writer.get_logdir(),
-                    "checkpoint_path": checkpoint_path,
-                    "ignore_index": ignore_index,
-                }
-                torch.save(save_data, os.path.join(checkpoint_path, checkpoint_name))
+                save_checkpoint(
+                    model,
+                    optm,
+                    epoch,
+                    model.kwargs,
+                    train_data,
+                    test_data,
+                    writer,
+                    checkpoint_path,
+                    ignore_index,
+                    cross_entropy_weights,
+                )
+        save_checkpoint(
+            model,
+            optm,
+            epoch,
+            model.kwargs,
+            train_data,
+            test_data,
+            writer,
+            checkpoint_path,
+            ignore_index,
+            cross_entropy_weights,
+        )
     except KeyboardInterrupt:
-        save_data = {
-            "model": model.state_dict(),
-            "optimizer": optm.state_dict(),
-            "epoch": epoch,
-            "model_kwargs": model.kwargs,
-            "train_kwargs": train_data.kwargs,
-            "test_kwargs": test_data.kwargs if test_data else None,
-            "writer_dir": writer.get_logdir(),
-            "checkpoint_path": checkpoint_path,
-            "ignore_index": ignore_index,
-        }
-        torch.save(save_data, os.path.join(checkpoint_path, checkpoint_name))
+        save_checkpoint(
+            model,
+            optm,
+            epoch,
+            model.kwargs,
+            train_data,
+            test_data,
+            writer,
+            checkpoint_path,
+            ignore_index,
+            cross_entropy_weights,
+        )
 
 
 def load_checkpoint(
@@ -178,7 +224,7 @@ def load_checkpoint(
     @param model_class: Model class to load
     @param optm_class: Optimizer class to load
     @return: Model, optimizer, epoch, train data, test data (if available), writer directory,
-        checkpoint path, ignore index
+        checkpoint path, ignore index, and cross entropy weights
     """
     checkpoint = torch.load(os.path.join(checkpoint_path, checkpoint_file))
     model = model_class(**checkpoint["model_kwargs"])
@@ -202,4 +248,5 @@ def load_checkpoint(
         writer,
         checkpoint["checkpoint_path"],
         checkpoint["ignore_index"],
+        checkpoint["cross_entropy_weights"],
     )
