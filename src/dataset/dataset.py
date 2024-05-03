@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 import torch
+import random
 
 
 class SparkifyDataset(Dataset):
@@ -23,7 +24,7 @@ class SparkifyDataset(Dataset):
         tensor = self.tensors[idx]
         target = self.targets[idx]
         seq_len, emb_dim = tensor.shape
-        start = torch.randint(0, seq_len - self.max_seq_len, (1,))
+        start = random.randint(0, max(0, seq_len - self.max_seq_len))
         emb = tensor[start : start + self.max_seq_len, :]
         target = target[start : start + self.max_seq_len]
         return emb, target

@@ -6,3 +6,4 @@ ipykernel==6.29.4
 sentence-transformers==2.6.1
 datasets==2.18.0
 pytest==8.2.0
+tensorboard==2.16.2

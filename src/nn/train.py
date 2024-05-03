@@ -9,6 +9,7 @@ from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+import os
 
 
 def accuracy(pred: Tensor, targets: Tensor, ignore_idx: int = -1) -> float:
@@ -40,6 +41,8 @@ def train(
     ignore_index: int = -1,
     test_every_n: int = 100,
     save_every_n: int = 100,
+    device: str = "cpu",
+    checkpoint_name: str = "checkpoint.pth",
 ):
     """
     Train the model on the training data.
@@ -58,7 +61,13 @@ def train(
     @param ignore_index: Index to ignore in the targets
     @param test_every_n: Test the model every n iterations
     @param save_every_n: Save the model every n iterations
+    @param device: Device to use for training
     """
+    os.makedirs(checkpoint_path, exist_ok=True)
+    if isinstance(writer, str):
+        os.makedirs(writer, exist_ok=True)
+    else:
+        os.makedirs(writer.get_logdir(), exist_ok=True)
     train_dl = DataLoader(
         train_data, batch_size=batch_size, shuffle=True, collate_fn=mat_collate_fn
     )
@@ -84,6 +93,12 @@ def train(
             except StopIteration:
                 train_iter = iter(train_dl)
                 emb, pos_indices, targets, masks = next(train_iter)
+            emb, pos_indices, targets, masks = (
+                emb.to(device),
+                pos_indices.to(device),
+                targets.to(device),
+                masks.to(device),
+            )
             outputs = model(emb, pos_indices, mask=masks)
             loss = F.cross_entropy(
                 outputs.reshape(-1, outputs.size(-1)),
@@ -105,6 +120,12 @@ def train(
                     except StopIteration:
                         test_iter = iter(test_dl)
                         emb, pos_indices, targets, masks = next(test_iter)
+                    emb, pos_indices, targets, masks = (
+                        emb.to(device),
+                        pos_indices.to(device),
+                        targets.to(device),
+                        masks.to(device),
+                    )
                     outputs = model(emb, pos_indices, mask=masks)
                     loss = F.cross_entropy(
                         outputs.reshape(-1, outputs.size(-1)),
@@ -127,7 +148,7 @@ def train(
                     "checkpoint_path": checkpoint_path,
                     "ignore_index": ignore_index,
                 }
-                torch.save(save_data, checkpoint_path)
+                torch.save(save_data, os.path.join(checkpoint_path, checkpoint_name))
     except KeyboardInterrupt:
         save_data = {
             "model": model.state_dict(),
@@ -140,11 +161,15 @@ def train(
             "checkpoint_path": checkpoint_path,
             "ignore_index": ignore_index,
         }
-        torch.save(save_data, checkpoint_path)
+        torch.save(save_data, os.path.join(checkpoint_path, checkpoint_name))
 
 
 def load_checkpoint(
-    checkpoint_path: str, model_class: nn.Module, optm_class: optim.Optimizer
+    checkpoint_path: str,
+    model_class: nn.Module,
+    optm_class: optim.Optimizer,
+    checkpoint_file: str = "checkpoint.pth",
+    device: str = "cpu",
 ):
     """
     Load a model checkpoint.
@@ -155,9 +180,10 @@ def load_checkpoint(
     @return: Model, optimizer, epoch, train data, test data (if available), writer directory,
         checkpoint path, ignore index
     """
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(os.path.join(checkpoint_path, checkpoint_file))
     model = model_class(**checkpoint["model_kwargs"])
     model.load_state_dict(checkpoint["model"])
+    model.to(device)
     optm = optm_class(model.parameters())
     optm.load_state_dict(checkpoint["optimizer"])
     train_ds = SparkifyDataset(**checkpoint["train_kwargs"])

@@ -15,3 +15,5 @@ data/train_first_half_dataset
 data/train_second_half1_dataset
 data/train_second_half2_dataset
 data/train_dataset_combined
+runs/
+checkpoints/
