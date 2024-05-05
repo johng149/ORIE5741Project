@@ -126,6 +126,7 @@ def train(
             except StopIteration:
                 train_iter = iter(train_dl)
                 emb, pos_indices, targets, masks = next(train_iter)
+            batch_size, seq_len, _ = emb.shape
             emb, pos_indices, targets, masks = (
                 emb.to(device),
                 pos_indices.to(device),
@@ -145,7 +146,7 @@ def train(
             optm.zero_grad()
             loss.backward()
             optm.step()
-            writer.add_scalar("Loss/train", loss.item(), epoch)
+            writer.add_scalar("Loss/train", loss.item() / batch_size, epoch)
             if epoch % test_every_n == 0 and test_data:
                 with torch.no_grad():
                     model.eval()
@@ -154,6 +155,7 @@ def train(
                     except StopIteration:
                         test_iter = iter(test_dl)
                         emb, pos_indices, targets, masks = next(test_iter)
+                    batch_size, seq_len, _ = emb.shape
                     emb, pos_indices, targets, masks = (
                         emb.to(device),
                         pos_indices.to(device),
@@ -169,7 +171,7 @@ def train(
                         ignore_index=ignore_index,
                         weight=cross_entropy_weights,
                     )
-                    writer.add_scalar("Loss/test", loss.item(), epoch)
+                    writer.add_scalar("Loss/test", loss.item() / batch_size, epoch)
             if epoch % save_every_n == 0:
                 save_checkpoint(
                     model,
