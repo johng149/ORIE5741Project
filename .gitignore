@@ -17,3 +17,5 @@ data/train_second_half2_dataset
 data/train_dataset_combined
 runs/
 checkpoints/
+outputs.pt
+targets.pt
